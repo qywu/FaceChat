@@ -72,7 +72,7 @@ except:
     pass
 
 Payload.max_decode_packets = 2048
-openai.api_key = "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"
+openai.api_key = "*******"
 
 app = Flask(__name__)
 app.debug = True
