@@ -1,0 +1,15 @@
+# torch and tensorflow should be installed manually
+# torch
+# tensorflow
+scipy
+flask
+flask_socketio
+deepface
+transformers
+langdetect
+TTS
+webrtcvad
+pyaudio
+opencv-python
+openai
+eventlet # important for socketio

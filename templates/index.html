@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="stylesheet" href="../static/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
+    <title>Real Time Audio Play Test</title>
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"
+        integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI"
+        crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+
+    <!-- Show Camera -->
+    <div id="container">
+        <video hidden autoplay playsinline id="videoElement"></video>
+        <canvas hidden id="canvas" width="400" height="300"></canvas>
+    </div>
+
+    <!-- Show Emotions -->
+    <div class='videoReturn'>
+        <img id="photo" width="400" height="300">
+    </div>
+
+    <!-- animated head-->
+    <div class="animation">
+        <p>
+            <input type="checkbox" id="force-talkr-cbx" hidden></input>
+        </p>
+        <div class="container apng-error" hidden>
+            <div class="alert alert-danger"></div>
+        </div>
+        <div class="container apng-result">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="apng-ani"></div>
+                      <div>
+                       <input id="play-pause-btn" type ="text" value="" hidden/>
+                      </div>
+                    </div>
+              </div>
+              <div class="row" hidden>
+                <div class="col-md-4">
+                    <pre class="apng-info"></pre>
+                </div>
+                <div class="col-md-8">
+                    <p class="apng-frames"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- context-->
+    <div class="conversation">
+        <div id="conversation-container">
+        </div>
+    </div>
+
+    <div class = "mid_buttons" >
+        <button type="button" id="start-record" class="btn" >Let's Chat</button>
+        <button type="button" id="stop-record"  class="btn" >Stop Chatting</button>
+    </div>
+
+<script src="../static/js/apng.js"></script>
+</body>
+
+<script>
+    window.setInterval(function() {
+    var elem = document.getElementById('conversation-container');
+    elem.scrollTop = elem.scrollHeight;
+    }, 500);
+
+    window.addEventListener("beforeunload", stop);
+    window.onbeforeunload = function (e) {
+        stop();
+    };
+
+    function downsampleBuffer(buffer, input_rate, output_rate) {
+        if (input_rate == output_rate) {
+            return buffer;
+        }
+        if (output_rate > input_rate) {
+            throw "downsampling rate show be smaller than original sample rate";
+        }
+
+        var sampleRateRatio = input_rate / output_rate;
+        var newLength = Math.round(buffer.length / sampleRateRatio);
+        var result = new Float32Array(newLength);
+        var offsetResult = 0;
+        var offsetBuffer = 0;
+        while (offsetResult < result.length) {
+            var nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+            // Use average value of skipped samples
+            var accum = 0, count = 0;
+            for (var i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+                accum += buffer[i];
+                count++;
+            }
+            result[offsetResult] = accum / count;
+            // Or you can simply get rid of the skipped samples:
+            // result[offsetResult] = buffer[nextOffsetBuffer];
+            offsetResult++;
+            offsetBuffer = nextOffsetBuffer;
+        }
+        return result;
+    }
+
+    // Setup socket connection
+    var socket = io.connect(window.location.protocol + '//' + document.domain + ':' + location.port);
+    socket.on('connect', function () {
+        console.log("Connected...!", socket.connected)
+    });
+
+
+    // Video Components
+    var canvas = document.getElementById('canvas');
+    var context = canvas.getContext('2d');
+    const video_element = document.querySelector("#videoElement");
+
+    video_element.width = 400;
+    video_element.height = 300;
+
+
+    if (navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                video_element.srcObject = stream;
+            })
+            .catch(function (err0r) {
+
+            });
+    }
+
+    // sending data at 20 fps
+    const FPS = 10;
+    setInterval(() => {
+        width = video_element.width;
+        height = video_element.height;
+        context.drawImage(video_element, 0, 0, width, height);
+        var data = canvas.toDataURL('image/jpeg', 0.5);
+
+        context.clearRect(0, 0, width, height);
+        socket.emit('image_observe', data);
+    }, 1000 / FPS);
+
+    socket.on('image_show', function (image) {
+        photo.setAttribute('src', image);
+    });
+
+
+    // Audio Components
+    const startRecordBtn = document.querySelector('#start-record');
+    const stopRecordBtn = document.querySelector('#stop-record');
+
+    const mic_sample_rate = 44100; // Hz
+    const out_sample_rate = 16000; // Hz
+    const blockSize = 2048; // samples
+    var initialized = false;
+
+    startRecordBtn.addEventListener('click', function () {
+        if (!initialized) {
+            socket.emit('system_init', 'welcome');
+            initialized = true;
+        }
+        console.log('Start chatting!');
+        socket.emit('start_chat', 'hi');
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function (stream) {
+                const audioListenCtx = new AudioContext();
+                var source = audioListenCtx.createMediaStreamSource(stream);
+                var processor = audioListenCtx.createScriptProcessor(blockSize, 1, 1);
+
+                source.connect(processor);
+                processor.connect(audioListenCtx.destination);
+
+                processor.onaudioprocess = function (e) {
+                    // Get the audio data as an ArrayBuffer
+                    var buffer = e.inputBuffer.getChannelData(0);
+                    var arrayBuffer = new Float32Array(buffer);
+
+                    var newBuffer = downsampleBuffer(arrayBuffer, mic_sample_rate, out_sample_rate)
+
+                    var encodedData = new Int16Array(newBuffer.length);
+
+                    // Encode the audio data as 16-bit signed integers to save space
+                    for (var i = 0; i < newBuffer.length; i++) {
+                        encodedData[i] = 32767 * newBuffer[i];
+                    }
+
+                    // Send the encoded audio data to the server
+                    socket.emit('audio_listen', encodedData.buffer);
+                };
+            })
+            .catch(function (err) {
+                console.error(err);
+            });
+    });
+
+    function stop() {
+        console.log('Stop chatting!');
+        socket.emit('stop_chat', 'bye');
+        return "Write something clever here...";
+    }
+
+    // Stop recording
+    stopRecordBtn.addEventListener('click', stop);
+    window.addEventListener("pagehide", stop);
+    window.addEventListener("beforeunload", stop);
+
+    function animate(e){
+        setTimeout(function () {
+            var mEvent = document.createEvent("MouseEvent");
+            const inn = document.getElementById('play-pause-btn');
+            inn.value = e;
+            mEvent.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+            inn.dispatchEvent(mEvent);
+        }, 0.1);
+    }
+
+    socket.on('audio_speak', function (audio_data) {
+        console.log("Audio data received");
+
+        var audio = audio_data.voice;
+        var now = audio_data.words;
+        animate(now);
+        console.log("number of words", now);
+
+        const audioSpeakCtx = new AudioContext({
+            latencyHint: "interactive",
+            sampleRate: 44100,
+        });
+
+        source = audioSpeakCtx.createBufferSource();
+        audioSpeakCtx.decodeAudioData(audio,
+            (buffer) => {
+                source.buffer = buffer;
+                source.connect(audioSpeakCtx.destination);
+                console.log("animate 1");
+                source.start();
+            },
+            (err) => console.error(`Error with decoding audio data: ${err.err}`)
+        );
+
+        $.ajax({
+            url: '/update-text',
+            type: 'POST',
+            data: { text: 'hello' },
+            success: function (response) {
+                //response = response.replace(/Background: /g, "<div class='message sent'>");
+                response = response.replace(/Agent: /g, "</div><div class='message sent'>");
+                response = response.replace(/User: /g, "</div><div class='message received'>");
+                //response = response.replace(/Instruction: Be an insurance agent that works for Sony Insurance Company and chat with a customer. The response should be short and informative./g, "");
+
+                response = response+"</div>"
+
+                $('#conversation-container').html(response);
+                $("#conversation-container").scrollTop =  $("#conversation-container").scrollHeight;
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    });
+
+    socket.on('logout', function (data) 
+    {
+        window.location = data;
+    });
+</script>
+
+</html>
