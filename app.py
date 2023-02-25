@@ -33,6 +33,7 @@ elif async_mode == "gevent":
     monkey.patch_all()
 # The Session instance is not used for direct access, you should always use flask.session
 from flask_session import Session
+import os
 import random
 import torch
 import time
@@ -72,7 +73,7 @@ except:
     pass
 
 Payload.max_decode_packets = 2048
-openai.api_key = "*******"
+openai.api_key = os.environ["OPENAI_API_KEY"]
 
 app = Flask(__name__)
 app.debug = True
