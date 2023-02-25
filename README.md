@@ -11,5 +11,6 @@ pip install -r requirements.txt
 # Run
 
 ```
+export OPENAI_API_KEY='yourkey'
 python app.py
 ```
