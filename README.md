@@ -16,5 +16,15 @@ https://platform.openai.com/docs/api-reference?lang=python
 ```
 export OPENAI_API_KEY='yourkey'
 python app.py
-``
+```
 
+It needs https to access the camera and microphone. 
+You can use self-signed certificate for Flask by running:
+
+```
+openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365
+```
+
+Then, you can access the webpage with:
+
+https://localhost:55009
