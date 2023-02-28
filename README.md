@@ -1,4 +1,5 @@
 # FaceChat
+![avatar](https://user-images.githubusercontent.com/60605574/221733913-3df8a86b-275a-40dd-abd3-209b8d8bc1eb.png)
 
 FaceChat: Real-Time Face-to-Face Conversational System
 
