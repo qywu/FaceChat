@@ -254,7 +254,7 @@ class GPT3Chatbot:
         reset_audio_buffer()
 
 # GPT models
-#**BENCHMARK**#
+# to be used for the BENCHMARK
 
 chatbot = GPT3Chatbot("text-davinci-002")
 #chatbot = GPT3Chatbot("text-davinci-003")
@@ -306,7 +306,7 @@ def stop_chat(data):
     session["name"] = None
     sem.release()
     socketio.emit('logout', "login");
-    #**BENCHMARK**#
+    # to be used for the BENCHMARK
     f.close()
 
 @socketio.on("system_init")
@@ -409,7 +409,7 @@ class VADAudio:
                     # reset empty_frame_count if detects speech
                     empty_frame_count = 0
 
-#**BENCHMARK**#
+# to be used for the BENCHMARK
 f = open(str(chatbot.model_name)+"_"+str(asr_model.model_name[asr_model.model_name.index("/")+1:])+".txt", "a")
 
 class EngagementDetector(Thread):
@@ -432,7 +432,7 @@ class EngagementDetector(Thread):
         print("Listening...")
 
         for frame in frames:
-            # print("reading frame")
+            
             if frame is not None:
                 wav_data.extend(frame)
             else:
@@ -444,14 +444,14 @@ class EngagementDetector(Thread):
 
                 if len(time_stamps) > 0:
                     print("Speaking:", end="")
-                    #**BENCHMARK**#
+                    # to be used for the BENCHMARK
                     s_time = time.time()
                     text, is_asr_valid = asr_model(data, sample_rate=16000)
                     print(text)
 
                     if is_asr_valid:
                         chatbot_response = chatbot.get_response(text)
-                        #**BENCHMARK**#
+                        # to be used for the BENCHMARK
                         f.write(str(time.time()-s_time))
                         f.write("\n")
                         # speak
